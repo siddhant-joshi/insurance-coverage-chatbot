@@ -25,11 +25,6 @@ load_dotenv()
 DATA_DIR = Path("data")
 VECTOR_STORE_PATH = DATA_DIR / "vector_store"
 
-POLICY_URLS = [
-    "https://www.uhcprovider.com/content/dam/provider/docs/public/policies/comm-medical-drug/bariatric-surgery.pdf",
-    "https://www.uhcprovider.com/content/dam/provider/docs/public/prior-auth/drugs-pharmacy/commercial/r-z/PA-Med-Nec-Xolair.pdf"
-]
-
 SYSTEM_PROMPT = """You are an expert insurance policy analyst. Answer the user's question based ONLY on the provided context from UnitedHealthcare policy documents.
 
 Context:
@@ -95,11 +90,9 @@ def downloadPolicies(urls: List[str], dataDir: Path) -> List[Path]:
                 downloadedFiles.append(filePath)
                 break
                 
-            except requests.RequestException as e:
+            except requests.RequestException:
                 if attempt < maxRetries - 1:
-                    st.warning(f"Retry {attempt + 1}/{maxRetries} for {fileName}...")
                     continue
-                st.error(f"Failed to download {fileName}: {str(e)}")
     
     return downloadedFiles
 
@@ -367,41 +360,79 @@ def main():
     st.caption("Ask questions about UnitedHealthcare commercial medical policies")
     
     with st.sidebar:
-        st.header("📄 Upload Policy Documents")
-        st.markdown("""
-        Upload UnitedHealthcare policy PDFs to get started.
+        st.header("📄 Document Management")
         
-        **Suggested documents:**
-        - [Bariatric Surgery Policy](https://www.uhcprovider.com/content/dam/provider/docs/public/policies/comm-medical-drug/bariatric-surgery.pdf)
-        - [Xolair Prior Auth](https://www.uhcprovider.com/content/dam/provider/docs/public/prior-auth/drugs-pharmacy/commercial/r-z/PA-Med-Nec-Xolair.pdf)
+        with st.expander("📥 Upload PDFs", expanded=True):
+            st.markdown("""
+            **How to add policy documents:**
+            
+            1. **Download PDFs manually** from the policy site
+               - [UHC Policy Portal](https://www.uhcprovider.com/en/policies-protocols/commercial-policies/commercial-medical-drug-policies.html)
+               - Open in Safari, accept Terms & Conditions
+               - Download the PDFs you need
+            
+            2. **Upload them here** (supports multiple files)
+            """)
+            
+            uploadedFiles = st.file_uploader(
+                "Select PDF files",
+                type=["pdf"],
+                accept_multiple_files=True,
+                key="pdf_uploader",
+                help="You can select multiple PDFs at once (Cmd+Click)"
+            )
+            
+            if uploadedFiles:
+                if st.button("📥 Process Uploaded PDFs"):
+                    processUploadedFiles(uploadedFiles)
+                    st.session_state.pop("vector_store", None)
+                    st.session_state.pop("rag_chain", None)
+                    st.session_state.pop("retriever", None)
+                    if VECTOR_STORE_PATH.exists():
+                        shutil.rmtree(VECTOR_STORE_PATH)
+                    st.success(f"✅ Uploaded {len(uploadedFiles)} PDF(s)")
+                    st.rerun()
         
-        *Right-click links → Save As to download*
-        """)
-        
-        uploadedFiles = st.file_uploader(
-            "Upload PDF files",
-            type=["pdf"],
-            accept_multiple_files=True,
-            key="pdf_uploader"
-        )
-        
-        if uploadedFiles:
-            if st.button("📥 Process Uploaded PDFs"):
-                processUploadedFiles(uploadedFiles)
-                st.session_state.pop("vector_store", None)
-                st.session_state.pop("rag_chain", None)
-                st.session_state.pop("retriever", None)
-                if VECTOR_STORE_PATH.exists():
-                    shutil.rmtree(VECTOR_STORE_PATH)
-                st.rerun()
+        with st.expander("🔗 Download from PDF URL", expanded=False):
+            st.markdown("""
+            **Have a direct PDF link?** Paste it here to download.
+            
+            Example: `https://example.com/policy.pdf`
+            """)
+            
+            pdfUrl = st.text_input(
+                "PDF URL",
+                placeholder="https://example.com/document.pdf",
+                key="pdf_url_input"
+            )
+            
+            if st.button("📥 Download PDF"):
+                if pdfUrl:
+                    with st.spinner("Downloading..."):
+                        downloadedFiles = downloadPolicies([pdfUrl], DATA_DIR)
+                        if downloadedFiles:
+                            st.session_state.pop("vector_store", None)
+                            st.session_state.pop("rag_chain", None)
+                            st.session_state.pop("retriever", None)
+                            if VECTOR_STORE_PATH.exists():
+                                shutil.rmtree(VECTOR_STORE_PATH)
+                            st.success(f"✅ Downloaded: {downloadedFiles[0].name}")
+                            st.rerun()
+                        else:
+                            st.error("Download failed. Check the URL and try again.")
+                else:
+                    st.warning("Please enter a URL")
         
         st.divider()
         
         existingPdfs = getExistingPdfs()
         if existingPdfs:
-            st.markdown("**Loaded documents:**")
-            for pdf in existingPdfs:
-                st.caption(f"• {pdf.name}")
+            st.markdown(f"### 📚 Loaded Documents ({len(existingPdfs)})")
+            with st.container(height=200):
+                for pdf in existingPdfs:
+                    st.caption(f"📄 {pdf.name}")
+        else:
+            st.info("📂 No documents loaded yet")
         
         st.divider()
         
@@ -412,17 +443,37 @@ def main():
         - "Is Xolair covered for asthma?"
         """)
         
-        if st.button("🗑️ Clear Chat History"):
-            st.session_state.messages = []
-            st.session_state.chat_history = []
-            st.session_state.pop("rag_chain", None)
-            st.session_state.pop("retriever", None)
-            st.rerun()
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🗑️ Clear Chat"):
+                st.session_state.messages = []
+                st.session_state.chat_history = []
+                st.session_state.pop("rag_chain", None)
+                st.session_state.pop("retriever", None)
+                st.rerun()
+        
+        with col2:
+            if st.button("🔄 Rebuild Index"):
+                st.session_state.pop("vector_store", None)
+                st.session_state.pop("rag_chain", None)
+                st.session_state.pop("retriever", None)
+                if VECTOR_STORE_PATH.exists():
+                    shutil.rmtree(VECTOR_STORE_PATH)
+                st.rerun()
     
     existingPdfs = getExistingPdfs()
     
     if not existingPdfs:
-        st.info("👈 Please upload policy PDF documents using the sidebar to get started.")
+        st.info("👈 Upload policy PDFs using the sidebar to get started.")
+        st.markdown("""
+        ### 📋 Quick Start Guide
+        
+        1. **Visit** the [UHC Policy Portal](https://www.uhcprovider.com/en/policies-protocols/commercial-policies/commercial-medical-drug-policies.html) in Safari
+        2. **Accept** Terms & Conditions
+        3. **Download** the policy PDFs you need (Cmd+Click for multiple)
+        4. **Upload** them using the sidebar →
+        5. **Ask questions** once loaded!
+        """)
         st.stop()
     
     if "vector_store" not in st.session_state:
