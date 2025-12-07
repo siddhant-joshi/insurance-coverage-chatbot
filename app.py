@@ -328,7 +328,7 @@ def renderChatMessage(role: str, content: str, sources: List = None):
         if sources and role == "assistant":
             uniqueSources = list(set([doc.metadata.get("source", "Unknown") for doc in sources]))
             if uniqueSources:
-                with st.expander("📄 View Sources"):
+                with st.expander("View Sources"):
                     for source in uniqueSources:
                         st.caption(f"• {source}")
 
@@ -338,7 +338,6 @@ def main():
     
     st.set_page_config(
         page_title="Insurance Policy Assistant",
-        page_icon="🏥",
         layout="centered",
         initial_sidebar_state="expanded"
     )
@@ -356,87 +355,65 @@ def main():
         </style>
     """, unsafe_allow_html=True)
     
-    st.title("🏥 Insurance Policy Assistant")
+    st.title("Insurance Policy Assistant")
     st.caption("Ask questions about UnitedHealthcare commercial medical policies")
     
     with st.sidebar:
-        st.header("📄 Document Management")
+        st.header("Document Management")
         
-        with st.expander("📥 Upload PDFs", expanded=True):
+        with st.expander("Upload PDFs", expanded=True):
             st.markdown("""
-            **How to add policy documents:**
+            **Steps to add policy documents:**
             
-            1. **Download PDFs manually** from the policy site
-               - [UHC Policy Portal](https://www.uhcprovider.com/en/policies-protocols/commercial-policies/commercial-medical-drug-policies.html)
-               - Open in Safari, accept Terms & Conditions
-               - Download the PDFs you need
-            
-            2. **Upload them here** (supports multiple files)
+            1. Visit the [UHC Policy Portal](https://www.uhcprovider.com/en/policies-protocols/commercial-policies/commercial-medical-drug-policies.html) in Safari
+            2. Accept Terms & Conditions when prompted
+            3. Download the policy PDFs you need (Cmd+Click to select multiple)
+            4. Upload them using the file selector below
             """)
             
             uploadedFiles = st.file_uploader(
                 "Select PDF files",
                 type=["pdf"],
                 accept_multiple_files=True,
-                key="pdf_uploader",
-                help="You can select multiple PDFs at once (Cmd+Click)"
+                key="pdf_uploader"
             )
             
             if uploadedFiles:
-                if st.button("📥 Process Uploaded PDFs"):
+                if st.button("Process Uploaded PDFs"):
                     processUploadedFiles(uploadedFiles)
                     st.session_state.pop("vector_store", None)
                     st.session_state.pop("rag_chain", None)
                     st.session_state.pop("retriever", None)
                     if VECTOR_STORE_PATH.exists():
                         shutil.rmtree(VECTOR_STORE_PATH)
-                    st.success(f"✅ Uploaded {len(uploadedFiles)} PDF(s)")
+                    st.success(f"Uploaded {len(uploadedFiles)} PDF(s)")
                     st.rerun()
-        
-        with st.expander("🔗 Download from PDF URL", expanded=False):
-            st.markdown("""
-            **Have a direct PDF link?** Paste it here to download.
-            
-            Example: `https://example.com/policy.pdf`
-            """)
-            
-            pdfUrl = st.text_input(
-                "PDF URL",
-                placeholder="https://example.com/document.pdf",
-                key="pdf_url_input"
-            )
-            
-            if st.button("📥 Download PDF"):
-                if pdfUrl:
-                    with st.spinner("Downloading..."):
-                        downloadedFiles = downloadPolicies([pdfUrl], DATA_DIR)
-                        if downloadedFiles:
-                            st.session_state.pop("vector_store", None)
-                            st.session_state.pop("rag_chain", None)
-                            st.session_state.pop("retriever", None)
-                            if VECTOR_STORE_PATH.exists():
-                                shutil.rmtree(VECTOR_STORE_PATH)
-                            st.success(f"✅ Downloaded: {downloadedFiles[0].name}")
-                            st.rerun()
-                        else:
-                            st.error("Download failed. Check the URL and try again.")
-                else:
-                    st.warning("Please enter a URL")
         
         st.divider()
         
         existingPdfs = getExistingPdfs()
         if existingPdfs:
-            st.markdown(f"### 📚 Loaded Documents ({len(existingPdfs)})")
+            st.markdown(f"### Loaded Documents ({len(existingPdfs)})")
             with st.container(height=200):
                 for pdf in existingPdfs:
-                    st.caption(f"📄 {pdf.name}")
+                    col1, col2 = st.columns([4, 1])
+                    with col1:
+                        st.caption(pdf.name)
+                    with col2:
+                        if st.button("Delete", key=f"del_{pdf.name}", help=f"Delete {pdf.name}"):
+                            pdf.unlink()
+                            st.session_state.pop("vector_store", None)
+                            st.session_state.pop("rag_chain", None)
+                            st.session_state.pop("retriever", None)
+                            if VECTOR_STORE_PATH.exists():
+                                shutil.rmtree(VECTOR_STORE_PATH)
+                            st.rerun()
         else:
-            st.info("📂 No documents loaded yet")
+            st.info("No documents loaded yet")
         
         st.divider()
         
-        st.header("💡 Example Questions")
+        st.header("Example Questions")
         st.markdown("""
         - "Is bariatric surgery covered?"
         - "What are the requirements for gastric bypass?"
@@ -445,7 +422,7 @@ def main():
         
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("🗑️ Clear Chat"):
+            if st.button("Clear Chat", use_container_width=True):
                 st.session_state.messages = []
                 st.session_state.chat_history = []
                 st.session_state.pop("rag_chain", None)
@@ -453,7 +430,7 @@ def main():
                 st.rerun()
         
         with col2:
-            if st.button("🔄 Rebuild Index"):
+            if st.button("Rebuild Index", use_container_width=True):
                 st.session_state.pop("vector_store", None)
                 st.session_state.pop("rag_chain", None)
                 st.session_state.pop("retriever", None)
@@ -464,16 +441,7 @@ def main():
     existingPdfs = getExistingPdfs()
     
     if not existingPdfs:
-        st.info("👈 Upload policy PDFs using the sidebar to get started.")
-        st.markdown("""
-        ### 📋 Quick Start Guide
-        
-        1. **Visit** the [UHC Policy Portal](https://www.uhcprovider.com/en/policies-protocols/commercial-policies/commercial-medical-drug-policies.html) in Safari
-        2. **Accept** Terms & Conditions
-        3. **Download** the policy PDFs you need (Cmd+Click for multiple)
-        4. **Upload** them using the sidebar →
-        5. **Ask questions** once loaded!
-        """)
+        st.info("Upload policy PDFs using the sidebar to get started")
         st.stop()
     
     if "vector_store" not in st.session_state:
@@ -483,7 +451,7 @@ def main():
         st.session_state.vector_store = vectorStore
         st.session_state.chunk_count = chunkCount
     
-    st.success(f"✅ Loaded {st.session_state.chunk_count} document chunks from {len(existingPdfs)} policy document(s)")
+    st.success(f"Loaded {len(existingPdfs)} policy document(s)")
     
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -528,7 +496,7 @@ def main():
                             for doc in sources
                         ]))
                         if uniqueSources:
-                            with st.expander("📄 View Sources"):
+                            with st.expander("View Sources"):
                                 for source in uniqueSources:
                                     st.caption(f"• {source}")
                     
