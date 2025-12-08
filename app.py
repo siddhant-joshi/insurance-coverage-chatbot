@@ -352,6 +352,28 @@ def main():
             padding: 1rem;
             border-radius: 0.5rem;
         }
+        [data-testid="stSidebar"] {
+            font-size: 0.85rem;
+        }
+        [data-testid="stSidebar"] h2 {
+            font-size: 1.2rem;
+        }
+        [data-testid="stSidebar"] h3 {
+            font-size: 1rem;
+        }
+        [data-testid="stSidebar"] .stMarkdown {
+            font-size: 0.85rem;
+        }
+        [data-testid="stSidebar"] .stButton button {
+            font-size: 0.85rem;
+            padding: 0.35rem 0.75rem;
+        }
+        [data-testid="stSidebar"] .stTextInput input {
+            font-size: 0.85rem;
+        }
+        [data-testid="stSidebar"] .stCaption {
+            font-size: 0.75rem;
+        }
         </style>
     """, unsafe_allow_html=True)
     
@@ -413,13 +435,6 @@ def main():
         
         st.divider()
         
-        st.header("Example Questions")
-        st.markdown("""
-        - "Is bariatric surgery covered?"
-        - "What are the requirements for gastric bypass?"
-        - "Is Xolair covered for asthma?"
-        """)
-        
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Clear Chat", use_container_width=True):
@@ -463,6 +478,14 @@ def main():
         retriever, chain = createRagChain(st.session_state.vector_store)
         st.session_state.retriever = retriever
         st.session_state.rag_chain = chain
+    
+    if not st.session_state.messages:
+        st.markdown("### Example Questions")
+        st.markdown("""
+        - "Is bariatric surgery covered?"
+        - "What are the requirements for gastric bypass?"
+        - "Is Xolair covered for asthma?"
+        """)
     
     for message in st.session_state.messages:
         renderChatMessage(
