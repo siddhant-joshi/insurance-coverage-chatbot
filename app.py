@@ -338,16 +338,12 @@ def main():
     
     st.set_page_config(
         page_title="Insurance Policy Assistant",
-        layout="centered",
+        layout="wide",
         initial_sidebar_state="expanded"
     )
     
     st.markdown("""
         <style>
-        .stApp {
-            max-width: 900px;
-            margin: 0 auto;
-        }
         .stChatMessage {
             padding: 1rem;
             border-radius: 0.5rem;
@@ -378,7 +374,7 @@ def main():
     """, unsafe_allow_html=True)
     
     st.title("Insurance Policy Assistant")
-    st.caption("Ask questions about UnitedHealthcare commercial medical policies")
+    st.caption("Ask Questions About UnitedHealthcare Commercial Medical Policies")
     
     with st.sidebar:
         st.header("Document Management")
@@ -411,8 +407,6 @@ def main():
                     st.success(f"Uploaded {len(uploadedFiles)} PDF(s)")
                     st.rerun()
         
-        st.divider()
-        
         existingPdfs = getExistingPdfs()
         if existingPdfs:
             st.markdown(f"### Loaded Documents ({len(existingPdfs)})")
@@ -432,8 +426,6 @@ def main():
                             st.rerun()
         else:
             st.info("No documents loaded yet")
-        
-        st.divider()
         
         col1, col2 = st.columns(2)
         with col1:
