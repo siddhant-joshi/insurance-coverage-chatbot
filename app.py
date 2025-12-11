@@ -313,7 +313,7 @@ def initializePipelineFromPdfs(pdfPaths: List[Path]):
     return vectorStore, embeddings, len(chunks)
 
 
-def renderChatMessage(role: str, content: str, sources: List = None):
+def renderChatMessage(role: str, content: str, sources: List = None, isError: bool = False):
     """
     Render a chat message with optional source citations.
     
@@ -321,10 +321,14 @@ def renderChatMessage(role: str, content: str, sources: List = None):
         role: Message role ('user' or 'assistant').
         content: Message content.
         sources: Optional list of source documents.
+        isError: Whether this message is an error message.
     """
     avatar = "👤" if role == "user" else "📋"
     with st.chat_message(role, avatar=avatar):
-        st.markdown(content)
+        if isError:
+            st.markdown(f'<p style="color: #ff4b4b; font-weight: 500;">{content}</p>', unsafe_allow_html=True)
+        else:
+            st.markdown(content)
         
         if sources and role == "assistant":
             uniqueSources = list(set([doc.metadata.get("source", "Unknown") for doc in sources]))
@@ -349,11 +353,34 @@ def main():
             padding: 1rem;
             border-radius: 0.5rem;
         }
-        [data-testid="stSidebar"] {
+        section[data-testid="stSidebar"] {
             font-size: 0.85rem;
+            width: 35rem !important;
+            min-width: 35rem !important;
+            max-width: 35rem !important;
+            transform: none !important;
+            transition: none !important;
         }
-        [data-testid="stSidebar"] > div:first-child {
-            overflow: hidden !important;
+        section[data-testid="stSidebar"] > div {
+            width: 35rem !important;
+            min-width: 35rem !important;
+            max-width: 35rem !important;
+        }
+        section[data-testid="stSidebar"][aria-expanded="true"],
+        section[data-testid="stSidebar"][aria-expanded="false"] {
+            width: 35rem !important;
+            min-width: 35rem !important;
+            max-width: 35rem !important;
+            transform: translateX(0) !important;
+        }
+        section[data-testid="stSidebar"][aria-expanded="true"] > div,
+        section[data-testid="stSidebar"][aria-expanded="false"] > div {
+            width: 35rem !important;
+            min-width: 35rem !important;
+            max-width: 35rem !important;
+        }
+        button[kind="header"] {
+            display: none !important;
         }
         [data-testid="stSidebar"] h2 {
             font-size: 1.2rem;
@@ -374,11 +401,43 @@ def main():
         [data-testid="stSidebar"] .stCaption {
             font-size: 0.75rem;
         }
+        .fixed-header {
+            position: fixed;
+            top: 3.5rem;
+            left: 35rem !important;
+            right: 0;
+            background-color: #0E1117;
+            z-index: 999;
+            padding: 1rem 1rem 0.5rem 1rem;
+            border-bottom: 1px solid #262730;
+        }
+        .fixed-header h1 {
+            font-size: 2.5rem;
+            font-weight: 600;
+            margin: 0;
+            padding: 0;
+            color: #FAFAFA;
+        }
+        .fixed-header p {
+            font-size: 0.875rem;
+            color: #A3A8B4;
+            margin: 0.25rem 0 0 0;
+            padding: 0;
+        }
+        .main-content {
+            padding-top: 9rem;
+        }
         </style>
     """, unsafe_allow_html=True)
     
-    st.title("Insurance Policy Assistant")
-    st.caption("Ask Questions About UnitedHealthcare Commercial Medical Policies")
+    st.markdown("""
+        <div class="fixed-header" id="main-header">
+            <h1>Insurance Policy Assistant</h1>
+            <p>Ask Questions About UnitedHealthcare Commercial Medical Policies</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown('<div class="main-content">', unsafe_allow_html=True)
     
     with st.sidebar:
         st.header("Document Management")
@@ -393,23 +452,28 @@ def main():
             4. Upload them using the file selector below
             """)
             
+            if "uploader_key" not in st.session_state:
+                st.session_state.uploader_key = 0
+            
             uploadedFiles = st.file_uploader(
                 "Select PDF files",
                 type=["pdf"],
                 accept_multiple_files=True,
-                key="pdf_uploader"
+                key=f"pdf_uploader_{st.session_state.uploader_key}"
             )
             
             if uploadedFiles:
-                if st.button("Process Uploaded PDFs"):
-                    processUploadedFiles(uploadedFiles)
-                    st.session_state.pop("vector_store", None)
-                    st.session_state.pop("rag_chain", None)
-                    st.session_state.pop("retriever", None)
-                    if VECTOR_STORE_PATH.exists():
-                        shutil.rmtree(VECTOR_STORE_PATH)
-                    st.success(f"Uploaded {len(uploadedFiles)} PDF(s)")
-                    st.rerun()
+                col1, col2, col3 = st.columns([1, 2, 1])
+                with col2:
+                    if st.button("Process Uploaded PDFs", use_container_width=True):
+                        processUploadedFiles(uploadedFiles)
+                        st.session_state.pop("vector_store", None)
+                        st.session_state.pop("rag_chain", None)
+                        st.session_state.pop("retriever", None)
+                        if VECTOR_STORE_PATH.exists():
+                            shutil.rmtree(VECTOR_STORE_PATH)
+                        st.session_state.uploader_key += 1
+                        st.rerun()
         
         existingPdfs = getExistingPdfs()
         if existingPdfs:
@@ -462,7 +526,7 @@ def main():
         st.session_state.vector_store = vectorStore
         st.session_state.chunk_count = chunkCount
     
-    st.success(f"Loaded {len(existingPdfs)} policy document(s)")
+    # st.success(f"Loaded {len(existingPdfs)} policy document(s)")
     
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -476,18 +540,29 @@ def main():
         st.session_state.rag_chain = chain
     
     if not st.session_state.messages:
-        st.markdown("### Example Questions")
         st.markdown("""
-        - "Is bariatric surgery covered?"
-        - "What are the requirements for gastric bypass?"
-        - "Is Xolair covered for asthma?"
-        """)
+            <div style="
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 60vh;
+                text-align: center;
+            ">
+                <h3 style="
+                    font-size: 2rem;
+                    color: #FFFFFF;
+                    font-weight: 500;
+                    opacity: 1;
+                ">Hello! What can I assist you with today?</h3>
+            </div>
+        """, unsafe_allow_html=True)
     
     for message in st.session_state.messages:
         renderChatMessage(
             message["role"],
             message["content"],
-            message.get("sources")
+            message.get("sources"),
+            message.get("is_error", False)
         )
     
     if prompt := st.chat_input("Ask about insurance coverage..."):
@@ -527,14 +602,31 @@ def main():
                         "content": answer,
                         "sources": sources
                     })
+                    st.rerun()
                     
                 except Exception as e:
-                    errorMsg = f"Error generating response: {str(e)}"
-                    st.error(errorMsg)
+                    errorStr = str(e).lower()
+                    
+                    if "429" in errorStr or "rate limit" in errorStr:
+                        errorMsg = "⚠️ Too many requests. Please try again in a moment."
+                    elif any(code in errorStr for code in ["400", "401", "403", "404", "500", "502", "503", "504"]):
+                        errorMsg = "⚠️ Unable to process your request. The AI service is currently unavailable."
+                    elif "timeout" in errorStr or "timed out" in errorStr:
+                        errorMsg = "⚠️ Request timed out. Please try again."
+                    elif "api" in errorStr or "key" in errorStr:
+                        errorMsg = "⚠️ API configuration error. Please check your settings."
+                    else:
+                        errorMsg = "⚠️ An unexpected error occurred. Please try again."
+                    
+                    st.markdown(f'<p style="color: #ff4b4b; font-weight: 500;">{errorMsg}</p>', unsafe_allow_html=True)
                     st.session_state.messages.append({
                         "role": "assistant",
-                        "content": errorMsg
+                        "content": errorMsg,
+                        "is_error": True
                     })
+                    st.rerun()
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
