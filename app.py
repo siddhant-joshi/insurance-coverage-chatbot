@@ -205,6 +205,54 @@ def formatDocs(docs):
     return "\n\n---\n\n".join(doc.page_content for doc in docs)
 
 
+def isCasualMessage(text: str) -> bool:
+    """
+    Check if the message is a casual conversational phrase.
+    
+    Args:
+        text: User input text.
+    
+    Returns:
+        True if the message is casual, False otherwise.
+    """
+    casualPhrases = [
+        "thanks", "thank you", "thx", "ty", "appreciate it",
+        "hello", "hi", "hey", "hola", 
+        "bye", "goodbye", "see you", "cya",
+        "ok", "okay", "got it", "understood", "makes sense",
+        "nice", "cool", "great", "awesome", "perfect"
+    ]
+    
+    textLower = text.lower().strip()
+    return any(phrase in textLower for phrase in casualPhrases) and len(textLower.split()) <= 5
+
+
+def getCasualResponse(text: str) -> str:
+    """
+    Generate an appropriate response to casual messages.
+    
+    Args:
+        text: User input text.
+    
+    Returns:
+        Appropriate casual response.
+    """
+    textLower = text.lower().strip()
+    
+    if any(word in textLower for word in ["thanks", "thank", "appreciate"]):
+        return "You're welcome! Feel free to ask if you have any other questions about the insurance policies."
+    elif any(word in textLower for word in ["hello", "hi", "hey", "hola"]):
+        return "Hello! How can I help you with your insurance policy questions today?"
+    elif any(word in textLower for word in ["bye", "goodbye", "see you", "cya"]):
+        return "Goodbye! Come back anytime you have questions about insurance policies."
+    elif any(word in textLower for word in ["ok", "okay", "got it", "understood", "makes sense"]):
+        return "Great! Let me know if you need any clarification or have additional questions."
+    elif any(word in textLower for word in ["nice", "cool", "great", "awesome", "perfect"]):
+        return "Glad I could help! Feel free to ask if you have more questions."
+    else:
+        return "Is there anything else you'd like to know about the insurance policies?"
+
+
 def createRagChain(vectorStore: FAISS):
     """
     Create the RAG chain with Gemini LLM using LCEL.
@@ -602,59 +650,74 @@ def main():
         })
         renderChatMessage("user", prompt)
         
-        with st.chat_message("assistant", avatar="📋"):
-            with st.spinner("Analyzing policy documents..."):
-                try:
-                    sources = st.session_state.retriever.invoke(prompt)
-                    
-                    answer = st.session_state.rag_chain.invoke({
-                        "question": prompt,
-                        "chat_history": st.session_state.chat_history
-                    })
-                    
-                    st.markdown(answer)
-                    
-                    if sources:
-                        uniqueSources = list(set([
-                            doc.metadata.get("source", "Unknown") 
-                            for doc in sources
-                        ]))
-                        if uniqueSources:
-                            with st.expander("View Sources"):
-                                for source in uniqueSources:
-                                    st.caption(f"• {source}")
-                    
-                    st.session_state.chat_history.append(HumanMessage(content=prompt))
-                    st.session_state.chat_history.append(AIMessage(content=answer))
-                    
-                    st.session_state.messages.append({
-                        "role": "assistant",
-                        "content": answer,
-                        "sources": sources
-                    })
-                    st.rerun()
-                    
-                except Exception as e:
-                    errorStr = str(e).lower()
-                    
-                    if "429" in errorStr or "rate limit" in errorStr:
-                        errorMsg = "⚠️ Too many requests. Please try again in a moment."
-                    elif any(code in errorStr for code in ["400", "401", "403", "404", "500", "502", "503", "504"]):
-                        errorMsg = "⚠️ Unable to process your request. The AI service is currently unavailable."
-                    elif "timeout" in errorStr or "timed out" in errorStr:
-                        errorMsg = "⚠️ Request timed out. Please try again."
-                    elif "api" in errorStr or "key" in errorStr:
-                        errorMsg = "⚠️ API configuration error. Please check your settings."
-                    else:
-                        errorMsg = "⚠️ An unexpected error occurred. Please try again."
-                    
-                    st.markdown(f'<p style="color: #ff4b4b; font-weight: 500;">{errorMsg}</p>', unsafe_allow_html=True)
-                    st.session_state.messages.append({
-                        "role": "assistant",
-                        "content": errorMsg,
-                        "is_error": True
-                    })
-                    st.rerun()
+        if isCasualMessage(prompt):
+            answer = getCasualResponse(prompt)
+            
+            with st.chat_message("assistant", avatar="📋"):
+                st.markdown(answer)
+            
+            st.session_state.chat_history.append(HumanMessage(content=prompt))
+            st.session_state.chat_history.append(AIMessage(content=answer))
+            
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": answer
+            })
+            st.rerun()
+        else:
+            with st.chat_message("assistant", avatar="📋"):
+                with st.spinner("Analyzing policy documents..."):
+                    try:
+                        sources = st.session_state.retriever.invoke(prompt)
+                        
+                        answer = st.session_state.rag_chain.invoke({
+                            "question": prompt,
+                            "chat_history": st.session_state.chat_history
+                        })
+                        
+                        st.markdown(answer)
+                        
+                        if sources:
+                            uniqueSources = list(set([
+                                doc.metadata.get("source", "Unknown") 
+                                for doc in sources
+                            ]))
+                            if uniqueSources:
+                                with st.expander("View Sources"):
+                                    for source in uniqueSources:
+                                        st.caption(f"• {source}")
+                        
+                        st.session_state.chat_history.append(HumanMessage(content=prompt))
+                        st.session_state.chat_history.append(AIMessage(content=answer))
+                        
+                        st.session_state.messages.append({
+                            "role": "assistant",
+                            "content": answer,
+                            "sources": sources
+                        })
+                        st.rerun()
+                        
+                    except Exception as e:
+                        errorStr = str(e).lower()
+                        
+                        if "429" in errorStr or "rate limit" in errorStr:
+                            errorMsg = "⚠️ Too many requests. Please try again in a moment."
+                        elif any(code in errorStr for code in ["400", "401", "403", "404", "500", "502", "503", "504"]):
+                            errorMsg = "⚠️ Unable to process your request. The AI service is currently unavailable."
+                        elif "timeout" in errorStr or "timed out" in errorStr:
+                            errorMsg = "⚠️ Request timed out. Please try again."
+                        elif "api" in errorStr or "key" in errorStr:
+                            errorMsg = "⚠️ API configuration error. Please check your settings."
+                        else:
+                            errorMsg = "⚠️ An unexpected error occurred. Please try again."
+                        
+                        st.markdown(f'<p style="color: #ff4b4b; font-weight: 500;">{errorMsg}</p>', unsafe_allow_html=True)
+                        st.session_state.messages.append({
+                            "role": "assistant",
+                            "content": errorMsg,
+                            "is_error": True
+                        })
+                        st.rerun()
     
     st.markdown('</div>', unsafe_allow_html=True)
 
