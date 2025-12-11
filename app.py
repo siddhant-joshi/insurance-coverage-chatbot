@@ -222,7 +222,7 @@ def createRagChain(vectorStore: FAISS):
         st.stop()
     
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash-lite",
         google_api_key=apiKey,
         temperature=0.3
     )
@@ -484,7 +484,7 @@ def main():
                     with col1:
                         st.caption(pdf.name)
                     with col2:
-                        if st.button("Delete", key=f"del_{pdf.name}", help=f"Delete {pdf.name}"):
+                        if st.button("Exclude", key=f"del_{pdf.name}", help=f"Exclude {pdf.name}"):
                             pdf.unlink()
                             st.session_state.pop("vector_store", None)
                             st.session_state.pop("rag_chain", None)
@@ -505,7 +505,7 @@ def main():
                 st.rerun()
         
         with col2:
-            if st.button("Rebuild Index", use_container_width=True):
+            if st.button("Reprocess Documents", use_container_width=True):
                 st.session_state.pop("vector_store", None)
                 st.session_state.pop("rag_chain", None)
                 st.session_state.pop("retriever", None)
@@ -545,7 +545,7 @@ def main():
                 display: flex;
                 justify-content: center;
                 align-items: center;
-                height: 60vh;
+                height: 30vh;
                 text-align: center;
             ">
                 <h3 style="
@@ -554,6 +554,36 @@ def main():
                     font-weight: 500;
                     opacity: 1;
                 ">Hello! What can I assist you with today?</h3>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+            <div style="
+                display: flex;
+                justify-content: center;
+                margin-top: -7rem;
+            ">
+                <div style="text-align: left;">
+                    <p style="
+                        color: #A3A8B4;
+                        font-size: 1rem;
+                        font-weight: 400;
+                        margin-bottom: 0.5rem;
+                        margin-left: 1.5rem;
+                    ">Try Asking:</p>
+                    <ul style="
+                        color: #A3A8B4;
+                        font-size: 0.95rem;
+                        line-height: 1.8;
+                        list-style: disc;
+                        margin: 0;
+                        padding-left: 1.5rem;
+                    ">
+                        <li style="margin-bottom: 0.25rem;">Is bariatric surgery covered?</li>
+                        <li style="margin-bottom: 0.25rem;">Does Xolair require prior authorization?</li>
+                        <li style="margin-bottom: 0.25rem;">Is Xolair covered for asthma?</li>
+                    </ul>
+                </div>
             </div>
         """, unsafe_allow_html=True)
     

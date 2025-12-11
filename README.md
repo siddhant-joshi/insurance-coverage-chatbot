@@ -1,6 +1,6 @@
 # Insurance Policy Assistant
 
-An AI-powered chatbot that helps you understand UnitedHealthcare commercial medical policies. Built with Streamlit and powered by Google's Gemini 2.0 Flash, this application uses advanced RAG (Retrieval-Augmented Generation) technology to provide accurate answers based on actual policy documents.
+An AI-powered chatbot that helps you understand UnitedHealthcare commercial medical policies. Built with Streamlit and powered by Google's Gemini 2.5 Flash Lite, this application uses advanced RAG (Retrieval-Augmented Generation) technology to provide accurate answers based on actual policy documents.
 
 ## What It Does
 
@@ -17,7 +17,7 @@ Upload multiple policy PDFs through the sidebar, view all loaded documents at a 
 Uses semantic search technology (FAISS vector store with sentence-transformers) to find the most relevant sections of your policy documents, even when questions are phrased differently than the document text.
 
 **AI-Powered Answers**
-Leverages Google's Gemini 2.0 Flash model to generate natural, easy-to-understand answers based solely on your uploaded policy documents.
+Leverages Google's Gemini 2.5 Flash Lite model to generate natural, easy-to-understand answers based solely on your uploaded policy documents.
 
 **Source Citations**
 Every answer includes references to the specific documents used, so you can verify the information and dive deeper if needed.
@@ -36,7 +36,7 @@ The application is built on a modern AI stack:
 - **RAG Framework:** LangChain handles the retrieval and response generation pipeline
 - **Vector Database:** FAISS stores and searches document embeddings efficiently
 - **Embeddings:** HuggingFace's sentence-transformers/all-MiniLM-L6-v2 model converts text into searchable vectors
-- **Language Model:** Google Gemini 2.0 Flash generates the final answers
+- **Language Model:** Google Gemini 2.5 Flash Lite generates the final answers
 - **PDF Processing:** PyPDF extracts text from policy documents
 
 Everything runs locally except for the API calls to Google's Gemini model.
