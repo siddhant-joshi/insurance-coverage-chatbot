@@ -322,7 +322,8 @@ def renderChatMessage(role: str, content: str, sources: List = None):
         content: Message content.
         sources: Optional list of source documents.
     """
-    with st.chat_message(role):
+    avatar = "👤" if role == "user" else "📋"
+    with st.chat_message(role, avatar=avatar):
         st.markdown(content)
         
         if sources and role == "assistant":
@@ -350,6 +351,9 @@ def main():
         }
         [data-testid="stSidebar"] {
             font-size: 0.85rem;
+        }
+        [data-testid="stSidebar"] > div:first-child {
+            overflow: hidden !important;
         }
         [data-testid="stSidebar"] h2 {
             font-size: 1.2rem;
@@ -493,7 +497,7 @@ def main():
         })
         renderChatMessage("user", prompt)
         
-        with st.chat_message("assistant"):
+        with st.chat_message("assistant", avatar="📋"):
             with st.spinner("Analyzing policy documents..."):
                 try:
                     sources = st.session_state.retriever.invoke(prompt)
